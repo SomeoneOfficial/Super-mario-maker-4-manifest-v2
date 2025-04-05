@@ -1,68 +1,55 @@
-const CACHE_NAME = 'Super-Mario-Maker-4-v1'; // Version your cache
+const CACHE_NAME = 'Super-Mario-Maker-4-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192x192.png', // Include images that need to be cached
-  '/icon-512x512.png',
-  '/script.js',         // Ensure main JS file is cached
-  // Add any other files you want to cache
+  '/Super-mario-maker-4-manifest/',
+  '/Super-mario-maker-4-manifest/index.html',
+  '/Super-mario-maker-4-manifest/manifest.json',
+  '/Super-mario-maker-4-manifest/icon-192x192.png',
+  '/Super-mario-maker-4-manifest/icon-512x512.png',
+  '/Super-mario-maker-4-manifest/script.js'
 ];
 
-// Install event: Cache static assets
+// Install event
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
+      .then(cache => cache.addAll(urlsToCache))
   );
+  self.skipWaiting();
 });
 
-// Activate event: Cleanup old caches
+// Activate event
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
-
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (!cacheWhitelist.includes(cacheName)) {
-            return caches.delete(cacheName);  // Delete old caches
-          }
-        })
-      );
-    })
+    caches.keys().then(names =>
+      Promise.all(names.map(name => {
+        if (!cacheWhitelist.includes(name)) {
+          return caches.delete(name);
+        }
+      }))
+    )
   );
+  self.clients.claim();
 });
 
-// Fetch event: Serve requests from cache or fetch from network
+// Fetch event
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // If we have a cached response, return it
-        if (response) {
-          return response;
-        }
-        // Otherwise, fetch from network and cache the response
-        return fetch(event.request)
+        return response || fetch(event.request)
           .then(networkResponse => {
-            if (networkResponse && networkResponse.status === 200) {
-              // Cache the response for future use (e.g., for manifest.json, images, etc.)
-              caches.open(CACHE_NAME).then(cache => {
-                cache.put(event.request, networkResponse.clone());
-              });
+            // Optionally cache new requests
+            return caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, networkResponse.clone());
+              return networkResponse;
+            });
+          }).catch(() => {
+            // If offline and file not cached, fallback
+            if (event.request.destination === 'document') {
+              return caches.match('/Super-mario-maker-4-manifest/index.html');
             }
-            return networkResponse;
           });
-      })
-  );
-});
-
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
       })
   );
 });
